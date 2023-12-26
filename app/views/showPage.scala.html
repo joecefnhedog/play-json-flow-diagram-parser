@@ -1,0 +1,25 @@
+@import routing.PageRoutingAndQuestions
+@(pageData: PageRoutingAndQuestions)
+
+<html>
+<head>
+    <title>@pageData.pageTitle.title</title>
+</head>
+<body>
+<h1>@pageData.pageTitle.title</h1>
+<form action="@routes.PageController.processAnswer(pageData.pageTitle.id)" method="post">
+    <ul>
+
+        @for(answer <- pageData.potentialAnswers) {
+        <li>
+            <label>
+                <input type="checkbox" name="answers[]" value="@answer.ans" />
+                @answer.ans
+            </label>
+        </li>
+        }
+    </ul>
+    <button type="submit">Submit</button>
+</form>
+</body>
+</html>
