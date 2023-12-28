@@ -24,6 +24,8 @@ class PageControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting
       val result = controller.showPage(999)(FakeRequest())
 
       status(result) mustBe NOT_FOUND
+      contentAsString(result) must include("IdNotFoundInDiagramNodes: The page with id: 999 was not found in the diagramNodes")
+
     }
 
     "redirect to the next page when processing a valid answer" in {
@@ -90,6 +92,26 @@ class PageControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting
 
       status(result) mustBe NOT_FOUND
     }
+
+    "return 404 for more than one answer selected" in {
+      val request = FakeRequest(POST, "/page/6/answer")
+        .withFormUrlEncodedBody("answers[]" -> "Yes", "answers[]" -> "No")
+      val result = route(app, request).get
+
+      status(result) mustBe NOT_FOUND
+      contentAsString(result) must include("MoreThanOneAnswersError: Did not find a single answer for id: 6. Found Yes,No")
+    }
+
+    "return 404 for out of bounds id page" in {
+      val request = FakeRequest(POST, "/page/99/answer")
+        .withFormUrlEncodedBody("answers[]" -> "Yes")
+      val result = route(app, request).get
+
+      status(result) mustBe NOT_FOUND
+      contentAsString(result) must include("IdNotFoundInPageRoutingData: The page with id: 99 was not found in the PageRoutingAndQuestions")
+    }
+
+
 
   }
 }
