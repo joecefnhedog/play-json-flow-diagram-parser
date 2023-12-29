@@ -18,15 +18,15 @@ class DiagramNodeSpec extends AnyFlatSpec with Matchers {
     val result = DiagramNode.fromXml(xmlNode)
 
     result shouldEqual DiagramNode(
-      "1",
+      1,
       Some("Node"),
       "rounded=0;",
       true,
       Geometry(Some(10.0), Some(20.0), Some(30.0), Some(40.0)),
       edge = Some("1"),
-      source = Some("3"),
-      target = Some("6"),
-      parent = "1"
+      source = Some(3),
+      target = Some(6),
+      parent = Some(1)
     )
   }
 
@@ -42,15 +42,15 @@ class DiagramNodeSpec extends AnyFlatSpec with Matchers {
     val result = DiagramNode.fromXml(xmlNode)
 
     result shouldEqual DiagramNode(
-      "2",
+      2,
       Some("Another Node"),
       "rounded=1;",
       false,
       Geometry(Some(50.0), Some(60.0), Some(70.0), Some(80.0)),
       edge = Some("1"),
-      source = Some("3"),
-      target = Some("6"),
-      parent = "1"
+      source = Some(3),
+      target = Some(6),
+      parent = Some(1)
     )
   }
 
@@ -66,15 +66,15 @@ class DiagramNodeSpec extends AnyFlatSpec with Matchers {
     val result = DiagramNode.fromXml(xmlNode)
 
     result shouldEqual DiagramNode(
-      "3",
+      3,
       Some("Yet Another Node"),
       "rounded=1;",
       false,
       Geometry(Some(90.0), Some(100.0), Some(110.0), Some(120.0)),
       edge = Some("1"),
-      source = Some("3"),
-      target = Some("6"),
-      parent = "1"
+      source = Some(3),
+      target = Some(6),
+      parent = Some(1)
     )
   }
 
@@ -89,15 +89,15 @@ class DiagramNodeSpec extends AnyFlatSpec with Matchers {
     val result = DiagramNode.fromXml(xmlNode)
 
     result shouldEqual DiagramNode(
-      "4",
+      4,
       Some("Node Without Geometry"),
       "rounded=1;",
       true,
       Geometry(None, None, None, None),
       edge = Some("1"),
-      source = Some("3"),
-      target = Some("6"),
-      parent = "1"
+      source = Some(3),
+      target = Some(6),
+      parent = Some(1)
     )
   }
 }
