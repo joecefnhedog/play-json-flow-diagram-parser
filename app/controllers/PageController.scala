@@ -2,7 +2,7 @@ package controllers
 
 import play.api.Configuration
 import play.api.mvc._
-import routing.PageRoutingAndQuestions
+import routing.{AnswerWithRoute, PageRoutingAndQuestions}
 import xml.parser.DiagramNode
 import xml.reader.WAATPXMLReader
 
@@ -21,7 +21,9 @@ class PageController @Inject() (
 
   def showPage(id: Int): Action[AnyContent] = Action {
     findIdFromPageData(id)
-      .map(pageData => Ok(views.html.showPage(pageData)))
+      .map((pageData: PageRoutingAndQuestions) =>
+        Ok(views.html.showPage(pageData))
+      )
       .orElse(
         findFinalPage(id).flatMap(getNextPageFromDiagramNode)
       ) match {
@@ -31,18 +33,21 @@ class PageController @Inject() (
 
   }
 
-  def processAnswer(pageId: Int): Action[AnyContent] = Action { request =>
+  def processAnswer(
+      pageId: Int,
+      availableAnswers: Seq[AnswerWithRoute]
+  ): Action[AnyContent] = Action { request =>
+
     val destination: Either[PageControllerError, Int] = for {
       bodyForm <- request.body.asFormUrlEncoded.toRight(
         AsFormUrlEncoded(pageId)
       )
       answers <- bodyForm.get("answers[]").toRight(GetAnswersError(pageId))
-      pageRoutingAndQuestions <- findIdFromPageData(pageId)
       matchAnswer <- answers match {
         case singleAnswer :: Nil => Right(singleAnswer)
         case _                   => Left(MoreThanOneAnswersError(pageId, answers))
       }
-      answerWithRoute <- pageRoutingAndQuestions.potentialAnswers
+      answerWithRoute <- availableAnswers
         .find(
           _.ans == matchAnswer
         )
@@ -51,8 +56,7 @@ class PageController @Inject() (
     } yield answerWithRoute.destination
 
     val getNextPageWhenSingleAnswer: Either[PageControllerError, Int] = for {
-      pageRoutingAndQuestions <- findIdFromPageData(pageId)
-      destination <- pageRoutingAndQuestions.matchAnswerToDestination(pageId)
+      destination <- matchAnswerToDestination(pageId, availableAnswers)
     } yield destination
 
     destination.orElse(getNextPageWhenSingleAnswer) match {
@@ -62,6 +66,21 @@ class PageController @Inject() (
     }
 
   }
+
+  private def matchAnswerToDestination(
+      pageId: Int,
+      potentialAnswers: Seq[AnswerWithRoute]
+  ): Either[MoreThanOneAnswersError, Int] =
+    potentialAnswers match {
+      case singleAnswer :: Nil => Right(singleAnswer.destination)
+      case _ =>
+        Left(
+          controllers.MoreThanOneAnswersError(
+            pageId,
+            potentialAnswers.map(_.ans)
+          )
+        )
+    }
 
   private def getNextPageFromDiagramNode(
       diagramNode: DiagramNode
@@ -83,7 +102,6 @@ class PageController @Inject() (
       .toRight(IdNotFoundInDiagramNodes(id))
 
 }
-
 
 abstract class PageControllerError(message: String)
     extends RuntimeException(message)
