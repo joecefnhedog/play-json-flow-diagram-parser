@@ -4,8 +4,13 @@ import org.scalatestplus.play._
 import org.scalatestplus.play.guice._
 import play.api.test._
 import play.api.test.Helpers._
+import routing.AnswerWithRoute
 
-class PageControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting {
+class PageControllerSpec
+    extends PlaySpec
+    with GuiceOneAppPerTest
+    with Injecting
+    with CommonTestObjects {
 
   "PageController" should {
 
@@ -24,26 +29,30 @@ class PageControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting
       val result = controller.showPage(999)(FakeRequest())
 
       status(result) mustBe NOT_FOUND
-      contentAsString(result) must include("IdNotFoundInDiagramNodes: The page with id: 999 was not found in the diagramNodes")
+      contentAsString(result) must include(
+        "IdNotFoundInDiagramNodes: The page with id: 999 was not found in the diagramNodes"
+      )
 
     }
 
     "redirect to the next page when processing a valid answer" in {
       val controller = inject[PageController]
 
-      val result = controller.processAnswer(6)(
+      val result = controller.processAnswer(6,Seq(ansYes,ansNo))(
         FakeRequest(POST, "/page/6/answer")
           .withFormUrlEncodedBody("answers[]" -> "Yes")
       )
 
       status(result) mustBe SEE_OTHER
-      redirectLocation(result) mustBe Some(routes.PageController.showPage(10).url)
+      redirectLocation(result) mustBe Some(
+        routes.PageController.showPage(10).url
+      )
     }
 
     "respond with NotFound when processing an invalid answer" in {
       val controller = inject[PageController]
 
-      val result = controller.processAnswer(6)(
+      val result = controller.processAnswer(6, Seq(ansInvalid))(
         FakeRequest(POST, "/page/6/answer")
           .withFormUrlEncodedBody("answers[]" -> "InvalidAnswer")
       )
@@ -99,7 +108,9 @@ class PageControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting
       val result = route(app, request).get
 
       status(result) mustBe NOT_FOUND
-      contentAsString(result) must include("MoreThanOneAnswersError: Did not find a single answer for id: 6. Found Yes,No")
+      contentAsString(result) must include(
+        "MoreThanOneAnswersError: Did not find a single answer for id: 6. Found Yes,No"
+      )
     }
 
     "return 404 for out of bounds id page" in {
@@ -108,10 +119,16 @@ class PageControllerSpec extends PlaySpec with GuiceOneAppPerTest with Injecting
       val result = route(app, request).get
 
       status(result) mustBe NOT_FOUND
-      contentAsString(result) must include("IdNotFoundInPageRoutingData: The page with id: 99 was not found in the PageRoutingAndQuestions")
+      contentAsString(result) must include(
+        "IdNotFoundInPageRoutingData: The page with id: 99 was not found in the PageRoutingAndQuestions"
+      )
     }
 
-
-
   }
+}
+
+trait CommonTestObjects {
+  val ansYes = AnswerWithRoute("Yes", 10)
+  val ansNo = AnswerWithRoute("No", 6)
+  val ansInvalid = AnswerWithRoute("InvalidAnswer", 600)
 }

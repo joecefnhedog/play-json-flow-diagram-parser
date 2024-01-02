@@ -17,15 +17,15 @@ object MyFirstXmlParser extends App {
 }
 
 case class DiagramNode(
-    id: String,
+    id: Int,
     value: Option[String],
     style: String,
     vertex: Boolean,
     geometry: Geometry,
     edge: Option[String],
-    source: Option[String],
-    target: Option[String],
-    parent: String
+    source: Option[Int],
+    target: Option[Int],
+    parent: Option[Int]
 ){
   override def toString: String = {
     s"DiagramNode(id=$id, value=$value, vertex=$vertex, geometry=<excluded>, " +
@@ -42,14 +42,14 @@ case class Geometry(
 
 object DiagramNode {
   def fromXml(xmlNode: Node): DiagramNode = {
-    val id = (xmlNode \ "@id").text
+    val id = (xmlNode \ "@id").text.toInt
     val value = (xmlNode \ "@value").headOption.map(_.text)
     val style = (xmlNode \ "@style").text
     val vertex = (xmlNode \ "@vertex").text.toBooleanOption.getOrElse(false)
     val edge = (xmlNode \ "@edge").headOption.map(_.text)
-    val source = (xmlNode \ "@source").headOption.map(_.text)
-    val target = (xmlNode \ "@target").headOption.map(_.text)
-    val parent = (xmlNode \ "@parent").text
+    val source = (xmlNode \ "@source").headOption.map(_.text.toInt)
+    val target = (xmlNode \ "@target").headOption.map(_.text.toInt)
+    val parent = (xmlNode \ "@parent").headOption.map(_.text.toInt)
 
     val geometryNode = xmlNode \ "mxGeometry"
     val geometry = Geometry(

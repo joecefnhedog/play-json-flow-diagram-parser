@@ -10,5 +10,5 @@ GET     /                           controllers.HomeController.index()
 GET     /assets/*file               controllers.Assets.versioned(path="/public", file: Asset)
 GET  /page/:pageId         controllers.PageController.showPage(pageId: Int)
 +nocsrf
-POST /page/:pageId/answer  controllers.PageController.processAnswer(pageId: Int)
+POST /page/:pageId/answer  controllers.PageController.processAnswer(pageId: Int, answers: Seq[AnswerWithRoute])
 

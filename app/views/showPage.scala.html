@@ -1,4 +1,5 @@
 @import routing.PageRoutingAndQuestions
+@import routing.AnswerWithRoute
 @(pageData: PageRoutingAndQuestions)
 
 <html>
@@ -7,7 +8,7 @@
 </head>
 <body>
 <h1>@pageData.pageTitle.title</h1>
-<form action="@routes.PageController.processAnswer(pageData.pageTitle.id)" method="post">
+<form action="@routes.PageController.processAnswer(pageData.pageTitle.id, pageData.potentialAnswers)" method="post">
     <ul>
 
         @for(answer <- pageData.potentialAnswers) {

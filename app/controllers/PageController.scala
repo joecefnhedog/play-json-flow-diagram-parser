@@ -1,28 +1,31 @@
 package controllers
 
-import javax.inject._
+import play.api.Configuration
 import play.api.mvc._
-import routing.{DiagramNodeProcessor, PageRoutingAndQuestions}
+import routing.{AnswerWithRoute, PageRoutingAndQuestions}
 import xml.parser.DiagramNode
+import xml.reader.WAATPXMLReader
 
-import scala.xml._
+import javax.inject._
 
 @Singleton
-class PageController @Inject() (cc: ControllerComponents)
-    extends AbstractController(cc) {
+class PageController @Inject() (
+    cc: ControllerComponents,
+    configuration: Configuration
+) extends AbstractController(cc)
+    with WAATPXMLReader {
+
+  override def filePath: String = {
+    configuration.get[String]("who.ate.all.the.pies.flowDiagram")
+  }
 
   def showPage(id: Int): Action[AnyContent] = Action {
-
-    val findFinalPage: Either[PageControllerError, DiagramNode] =
-      PageController.diagramNodes.find(_.id.toInt == id) match {
-        case Some(value) => Right(value)
-        case None        => Left(IdNotFoundInDiagramNodes(id))
-      }
-
     findIdFromPageData(id)
-      .map(pageData => Ok(views.html.showPage(pageData)))
+      .map((pageData: PageRoutingAndQuestions) =>
+        Ok(views.html.showPage(pageData))
+      )
       .orElse(
-        getNextPageFromDiagramNode(findFinalPage)
+        findFinalPage(id).flatMap(getNextPageFromDiagramNode)
       ) match {
       case Left(value)  => NotFound(s"$value")
       case Right(value) => value
@@ -30,35 +33,30 @@ class PageController @Inject() (cc: ControllerComponents)
 
   }
 
-  def processAnswer(pageId: Int): Action[AnyContent] = Action { request =>
+  def processAnswer(
+      pageId: Int,
+      availableAnswers: Seq[AnswerWithRoute]
+  ): Action[AnyContent] = Action { request =>
+
     val destination: Either[PageControllerError, Int] = for {
-      bodyForm <- request.body.asFormUrlEncoded match {
-        case Some(value) => Right(value)
-        case None        => Left(AsFormUrlEncoded(pageId))
-      }
-      answers <- bodyForm.get("answers[]") match {
-        case Some(value) => Right(value)
-        case None        => Left(GetAnswersError(pageId))
-      }
-      pageRoutingAndQuestions <- findIdFromPageData(pageId)
+      bodyForm <- request.body.asFormUrlEncoded.toRight(
+        AsFormUrlEncoded(pageId)
+      )
+      answers <- bodyForm.get("answers[]").toRight(GetAnswersError(pageId))
       matchAnswer <- answers match {
         case singleAnswer :: Nil => Right(singleAnswer)
         case _                   => Left(MoreThanOneAnswersError(pageId, answers))
       }
-      answerWithRoute <- pageRoutingAndQuestions.potentialAnswers.find(_.ans == matchAnswer) match {
-        case Some(value) => Right(value)
-        case None        => Left(IdNotFoundInPageRoutingData(pageId))
-      }
+      answerWithRoute <- availableAnswers
+        .find(
+          _.ans == matchAnswer
+        )
+        .toRight(IdNotFoundInPageRoutingData(pageId))
 
     } yield answerWithRoute.destination
 
     val getNextPageWhenSingleAnswer: Either[PageControllerError, Int] = for {
-      pageRoutingAndQuestions <- findIdFromPageData(pageId)
-      destination <- pageRoutingAndQuestions.potentialAnswers match {
-        case singleAnswer :: Nil => Right(singleAnswer.destination)
-        case _ =>
-          Left(MoreThanOneAnswersError(pageId, pageRoutingAndQuestions.potentialAnswers.map(_.ans)))
-      }
+      destination <- matchAnswerToDestination(pageId, availableAnswers)
     } yield destination
 
     destination.orElse(getNextPageWhenSingleAnswer) match {
@@ -69,43 +67,39 @@ class PageController @Inject() (cc: ControllerComponents)
 
   }
 
+  private def matchAnswerToDestination(
+      pageId: Int,
+      potentialAnswers: Seq[AnswerWithRoute]
+  ): Either[MoreThanOneAnswersError, Int] =
+    potentialAnswers match {
+      case singleAnswer :: Nil => Right(singleAnswer.destination)
+      case _ =>
+        Left(
+          controllers.MoreThanOneAnswersError(
+            pageId,
+            potentialAnswers.map(_.ans)
+          )
+        )
+    }
+
   private def getNextPageFromDiagramNode(
-      findFinalPage: Either[PageControllerError, DiagramNode]
-  ): Either[PageControllerError, Result] = {
+      diagramNode: DiagramNode
+  ): Either[PageControllerError, Result] =
     for {
-      diagramNode <- findFinalPage
-      content <- diagramNode.value match {
-        case Some(value) => Right(value)
-        case None =>
-          Left(XMLParsingError(diagramNode))
-      }
+      content <- diagramNode.value.toRight(XMLParsingError(diagramNode))
     } yield Ok(views.html.result(content))
-  }
 
   private def findIdFromPageData(
       pageId: Int
-  ): Either[IdNotFoundInPageRoutingData, PageRoutingAndQuestions] = {
-    PageController.pageRoutingData.find(_.pageTitle.id == pageId) match {
-      case Some(value) => Right(value)
-      case None        => Left(IdNotFoundInPageRoutingData(pageId))
-    }
-  }
-}
+  ): Either[IdNotFoundInPageRoutingData, PageRoutingAndQuestions] =
+    pageRoutingData
+      .find(_.pageTitle.id == pageId)
+      .toRight(IdNotFoundInPageRoutingData(pageId))
 
-object PageController {
-
-  private val filePath: String = "conf/flowChartTest.xml"
-
-  private val xml: Elem = XML.loadFile(filePath)
-
-  val diagramNodes: Seq[DiagramNode] =
-    (xml \ "diagram" \ "mxGraphModel" \ "root" \ "mxCell").map(x =>
-      DiagramNode.fromXml(x)
-    )
-
-  val pageRoutingData: Seq[PageRoutingAndQuestions] = {
-    DiagramNodeProcessor.getSourceNodes(diagramNodes)
-  }
+  private def findFinalPage(id: Int): Either[PageControllerError, DiagramNode] =
+    diagramNodes
+      .find(_.id == id)
+      .toRight(IdNotFoundInDiagramNodes(id))
 
 }
 
